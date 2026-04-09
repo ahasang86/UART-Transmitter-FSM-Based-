@@ -1,0 +1,97 @@
+//==============================================================
+// UART Transmitter (FSM Based)
+// Fully commented in English
+//==============================================================
+
+module uart_tx (
+    input  logic clk,          // System clock
+    input  logic reset,        // Synchronous reset
+    input  logic start,        // Signal to start transmission
+    input  logic [7:0] data,   // 8-bit data to transmit
+    output logic tx,           // UART TX output line
+    output logic busy          // High when transmission is active
+);
+
+    //==========================================================
+    // FSM State Declaration
+    //==========================================================
+    typedef enum logic [1:0] {
+        IDLE,      // Waiting for start signal
+        START,     // Sending start bit (0)
+        DATA,      // Sending 8 data bits (LSB first)
+        STOP       // Sending stop bit (1)
+    } state_t;
+
+    state_t current_state, next_state;
+
+    logic [2:0] bit_count;     // Tracks which bit is being sent
+    logic [7:0] shift_reg;     // Holds data during shifting
+
+    //==========================================================
+    // State Register (Sequential Logic)
+    //==========================================================
+    always_ff @(posedge clk) begin
+        if (reset)
+            current_state <= IDLE;
+        else
+            current_state <= next_state;
+    end
+
+    //==========================================================
+    // Next State Logic (Combinational)
+    //==========================================================
+    always_comb begin
+        case (current_state)
+
+            IDLE:
+                next_state = (start) ? START : IDLE;
+
+            START:
+                next_state = DATA;
+
+            DATA:
+                next_state = (bit_count == 7) ? STOP : DATA;
+
+            STOP:
+                next_state = IDLE;
+
+            default:
+                next_state = IDLE;
+        endcase
+    end
+
+    //==========================================================
+    // Output Logic + Data Handling
+    //==========================================================
+    always_ff @(posedge clk) begin
+        case (current_state)
+
+            IDLE: begin
+                tx <= 1;            // Idle line is HIGH
+                busy <= 0;
+                if (start) begin
+                    shift_reg <= data;  // Load data into shift register
+                    bit_count <= 0;
+                end
+            end
+
+            START: begin
+                tx <= 0;            // Start bit = 0
+                busy <= 1;
+            end
+
+            DATA: begin
+                tx <= shift_reg[0];     // Send LSB
+                shift_reg <= shift_reg >> 1; // Shift right
+                bit_count <= bit_count + 1;
+            end
+
+            STOP: begin
+                tx <= 1;            // Stop bit = 1
+                busy <= 1;
+            end
+        endcase
+    end
+
+endmodule
+

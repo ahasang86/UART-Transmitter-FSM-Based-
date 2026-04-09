@@ -1,0 +1,58 @@
+//==============================================================
+// Testbench for UART Transmitter
+//==============================================================
+
+module tb_uart_tx;
+
+    logic clk, reset;
+    logic start;
+    logic [7:0] data;
+    logic tx, busy;
+
+    // Instantiate DUT (Device Under Test)
+    uart_tx dut (
+        .clk(clk),
+        .reset(reset),
+        .start(start),
+        .data(data),
+        .tx(tx),
+        .busy(busy)
+    );
+
+    // Clock generation: 10ns period
+    always #5 clk = ~clk;
+
+    initial begin
+        $display("Starting UART TX Testbench...");
+
+        // Initialize signals
+        clk = 0;
+        reset = 1;
+        start = 0;
+        data = 8'h00;
+
+        // Release reset
+        #20 reset = 0;
+
+        // Test Case 1: Send 0xA5
+        data = 8'hA5;
+        start = 1;
+        #10 start = 0;
+
+        // Wait for transmission to finish
+        wait (!busy);
+        #50;
+
+        // Test Case 2: Send 0x3C
+        data = 8'h3C;
+        start = 1;
+        #10 start = 0;
+
+        wait (!busy);
+        #50;
+
+        $display("UART TX Test Completed.");
+        $finish;
+    end
+
+endmodule
